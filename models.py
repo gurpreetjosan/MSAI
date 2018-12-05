@@ -57,13 +57,13 @@ def define_model_BILSTM2L(vocab_size, max_query_length, max_para_length,num_clas
     plot_model(model, to_file='./graphs/'+modelname+'.png', show_shapes=True)
     return model,modelname
 
-def define_model_BILSTM1L(vocab_size, max_query_length, max_para_length,num_classes):
+def define_model_BILSTM1L(vocab_size, max_query_length, max_para_length,num_classes,embedding_matrix):
     modelname="BiLSTM1L-Dense-Model_"
 
     # query embedding
     inputs2 = Input(shape=(max_query_length,))
     mask = Masking(mask_value=0)(inputs2)
-    emb2 = Embedding(vocab_size, 200, mask_zero=True)(mask)
+    emb2 = Embedding(vocab_size, 100, weights=[embedding_matrix], trainable=False, mask_zero=True)(mask)
     #emb3 = Bidirectional(LSTM(units=250, return_sequences=True, recurrent_dropout=0.1))(emb2)
     emb3 = Bidirectional(LSTM(units=250, recurrent_dropout=0.1))(emb2)
     emb3 = Dropout(0.5)(emb3)
@@ -72,7 +72,7 @@ def define_model_BILSTM1L(vocab_size, max_query_length, max_para_length,num_clas
     #para embedding
     inputs3 = Input(shape=(max_para_length,))
     mask = Masking(mask_value=0)(inputs3)
-    encoder1 = Embedding(vocab_size, 200,mask_zero=True)(mask)
+    encoder1 = Embedding(vocab_size, 100, weights=[embedding_matrix], trainable=False,mask_zero=True)(mask)
     #encoder2 = Bidirectional(LSTM(units=250, return_sequences=True, recurrent_dropout=0.1))(encoder1)
     encoder2 = Bidirectional(LSTM(units=250, recurrent_dropout=0.1))(encoder1)
     encoder2=Dropout(0.5)(encoder2)

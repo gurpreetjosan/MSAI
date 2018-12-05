@@ -17,22 +17,36 @@ queryTrain, queryV, paraTrain, paraV, labelTrain, labelV = util.loadData_new()
 print(len(queryTrain),len(paraTrain),len(labelTrain))
 print(len(queryV),len(paraV),len(labelV))
 
-queryTrain = {key:queryTrain[key] for i, key in enumerate(queryTrain) if i <5000}
-print(len(queryTrain))
-queryV={key:queryV[key] for i, key in enumerate(queryV) if i <500}
+#logic for reducing training samples and evaluation samples
+
+queryTrain = {key:queryTrain[key] for i, key in enumerate(queryTrain) if (i>0 and i<100000)}
+paraTrain = {key:paraTrain[key] for i, key in enumerate(queryTrain)}
+
+print(len(queryTrain),len(paraTrain))
+queryV={key:queryV[key] for i, key in enumerate(queryV) if i <10000}
+paraV={key:paraV[key] for i, key in enumerate(queryV)}
+#----------------------------------------------
+
+
 print("Tokenizing...")
 
 
-if os.path.isfile("./data/tokenizer.pickle"):
-    with open('./data/tokenizer.pickle', 'rb') as handle:
+if os.path.isfile("./data/tokenizer-1Lqueries.pickle"):
+    #tokenizer = util.create_tokenizer([queryTrain, queryV], [paraTrain, paraV],"1L")
+    with open('./data/tokenizer-1Lqueries.pickle', 'rb') as handle:
         tokenizer=pickle.load(handle)
 else:
-    tokenizer=util.create_tokenizer([queryTrain,queryV],[paraTrain,paraV])
+    print("No tokenizer dump exist. create tokenizer file from dividefile.py and restart this program.")
+    exit(0)
+    #tokenizer=util.create_tokenizer([queryTrain,queryV],[paraTrain,paraV])
 
 vocab_size = len(tokenizer.word_index) + 1
 print('Vocabulary Size: %d' % vocab_size)
 
+embeddings_index =util.load_embedding()
+embedding_matrix=util.create_weight_matrix(vocab_size,tokenizer,embeddings_index)
 
+del embeddings_index #free memory
 # determine the maximum train sequence length from both train and validate data
 print("Finding max para length...")
 max_para_length=362
@@ -65,7 +79,7 @@ print('Maximum query Length: %d' % max_query_length)
 # define experiment
 verbose = 1
 n_epochs = 15
-n_queries_per_update = 7
+n_queries_per_update = 10
 n_batches_per_epoch = int(len(queryTrain) / n_queries_per_update)
 n_repeats = 1
 validationSteps = int(len(queryV) / n_queries_per_update)
@@ -89,7 +103,7 @@ if resume_trng =='yes':
 
 else:
     # define the model
-    model,modelFileName = models.define_model_BILSTM1L(vocab_size, max_query_length, max_para_length,num_classes)
+    model,modelFileName = models.define_model_BILSTM1L(vocab_size, max_query_length, max_para_length,num_classes,embedding_matrix)
     for i in range(n_repeats):
         # define checkpoint callback
         filepath = 'trained_model/'+modelFileName+'best.h5'#-ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5'
@@ -119,9 +133,9 @@ else:
         plt.show()
         # plt.ylabel('Frequency [Hz]')
         # plt.xlabel('Time [sec]')
-        plt.savefig('./graphs/' + modelFileName + "plt")
+        #plt.savefig('./graphs/' + modelFileName + "plt")
         fig.savefig('./graphs/' + modelFileName + "fig")
-        plt.savefig(modelFileName + "-graph.png", bbox_inches='tight')
+        #plt.savefig(modelFileName + "-graph.png", bbox_inches='tight')
         fig.savefig(modelFileName + "-graph.png", bbox_inches='tight')
         #model.save('model_' + str(i) + '.h5')
         # evaluate model on training data

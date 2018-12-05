@@ -1,5 +1,6 @@
 import sys
-
+from nltk.stem.snowball import SnowballStemmer
+from nltk.tokenize import sent_tokenize, word_tokenize
 import pandas
 import pickle
 from keras.preprocessing.text import Tokenizer
@@ -53,6 +54,27 @@ def loadData_new():
 
     return queryTrain_mapping,queryV_mapping,paraTrain_mapping,paraV_mapping,labelTrain_mapping,labelV_mapping
 
+def loadData_stemed():
+    print("loading queriesT from pickle files")
+    with open('./data/queryTrain_stemed.pickle', 'rb') as handle:
+        queryTrain_mapping = pickle.load(handle)
+    print("loading paraT from pickle files")
+    with open('./data/paraTrain_stemed.pickle', 'rb') as handle:
+        paraTrain_mapping=pickle.load(handle)
+    print("loading labelT from pickle files")
+    with open('./data/labelTrain_stemed.pickle', 'rb') as handle:
+       labelTrain_mapping=pickle.load(handle)
+    print("loading queriesV from pickle files")
+    with open('./data/queryV_stemed.pickle', 'rb') as handle:
+       queryV_mapping = pickle.load(handle)
+    print("loading paraV from pickle files")
+    with open('./data/paraV_stemed.pickle', 'rb') as handle:
+       paraV_mapping=pickle.load(handle)
+    print("loading labelV from pickle files")
+    with open('./data/labelV_stemed.pickle', 'rb') as handle:
+       labelV_mapping=pickle.load(handle)
+
+    return queryTrain_mapping,queryV_mapping,paraTrain_mapping,paraV_mapping,labelTrain_mapping,labelV_mapping
 
 def loadData(datafolder):
     # global GloveEmbeddings,emb_dim,max_query_words,max_passage_words
@@ -132,12 +154,12 @@ def loadData(datafolder):
 
 def clean_text(desc):
     # prepare translation table for removing punctuation
-    table = str.maketrans('', '', string.punctuation)
+    #table = str.maketrans('', '', string.punctuation)
     # desc = desc.split()
     # convert to lower case
-    desc = [word.lower() for word in desc]
+    #desc = [word.lower() for word in desc]
     # remove punctuation from each token
-    desc = [w.translate(table) for w in desc]
+    #desc = [w.translate(table) for w in desc]
     # remove hanging 's' and 'a'
     desc = [word for word in desc if len(word) > 1]
     # remove tokens with numbers in them
@@ -145,30 +167,50 @@ def clean_text(desc):
     # store as string
     return ' '.join(desc)
 
-# fit a tokenizer given query and para descriptions. Used if tokens from corpus is generated
+def stem_stop_removal():
+    ps = SnowballStemmer("english")
+    df = pandas.read_csv('./data/traindata.tsv', sep='\t', header=None)
+    p = df[2].tolist()
+    print("stemming paras")
+    p = [" ".join([ps.stem(word) for word in sentence.split(" ")]) for sentence in p]
 
-def create_tokenizer(querylist,datalist):
+    print("stemming queries")
+    p = df[1].tolist()
+    tokenizer.fit_on_texts(p)
+
+    print("Loading Validation data...")
+    df = pandas.read_csv('./data/validationdata.tsv', sep='\t', header=None)
+    p = df[2].tolist()
+    print("adding paras")
+    tokenizer.fit_on_texts(p)
+
+    print("adding queries")
+    p = df[1].tolist()
+    tokenizer.fit_on_texts(p)
+
+
+# fit a tokenizer given query and para descriptions. Used if tokens from corpus is generated
+def create_tokenizer(querylist,datalist,size):
 
     tokenizer = Tokenizer(oov_token="<OOV>")
-    print("adding queries")
+    print("fitting queries....")
     for d in querylist:
         tokenizer.fit_on_texts([" ".join(d.values())])
-
-    print("adding paras")
+    print("fitting paras....")
     for d in datalist:
-        " ".join(" ".join(x) for x in d.values())
-        #for sl in d:
-        #    tokenizer.fit_on_texts([" ".join(sl.values())])
+        temp=[x for v in d.values() for x in v]
+        tokenizer.fit_on_texts(temp)
 
-    with open('./data/tokenizer.pickle', 'wb') as handle:
+    with open('./data/tokenizer-'+size+'queries.pickle', 'wb') as handle:
         pickle.dump(tokenizer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     return tokenizer
 
 # load the whole embedding into memory
 def load_embedding():
+    print("loading Glove index...")
     embeddings_index = dict()
-    f = open('glove.6B.100d.txt')
+    f = open('./Glove/glove.6B.100d.txt',encoding="utf8")
     for line in f:
         values = line.split()
         word = values[0]
@@ -189,6 +231,7 @@ def create_weight_matrix(vocab_size, t, ei):  # t is pointing to tokenizer, ei i
 
 
 def data_generator(queries, paras, labels, tokenizer, max_query_length, max_para_length, n_step):
+
     # loop until we finish training
     while 1:
         # loop over query identifiers in the dataset
@@ -199,7 +242,7 @@ def data_generator(queries, paras, labels, tokenizer, max_query_length, max_para
                 query_id = keys[j]
                 # retrieve query
                 query = queries[query_id]
-                print(query)
+                #print(query)
                 query=clean_text([query])
                 # retrieve text input
                 paralist = paras[query_id]
