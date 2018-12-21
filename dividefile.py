@@ -188,8 +188,8 @@ def pickle_StemedData():
     labelTrain_mapping, labelV_mapping,labelE_mapping = dict(), dict(), dict()
     paraTrain_mapping, paraV_mapping,paraE_mapping = dict(), dict(), dict()
     table = str.maketrans('', '', string.punctuation)
-    ps = SnowballStemmer("english")
-    stop = stopwords.words('english')
+    ps = nltk.PorterStemmer()
+    stop = []#stopwords.words('english')
 
     # Loading train data
     print("Loading Train data...")
@@ -197,6 +197,7 @@ def pickle_StemedData():
     #apply stemming on the whole query and para column
     print("applying stemming on query...")
     df[1] = df[1].apply(lambda x: " ".join([ps.stem(word.lower().translate(table)) for word in x.split(" ") if word not in stop]))
+
     print("applying stemming on paras...")
     df[2] = df[2].apply(lambda x: " ".join([ps.stem(word.lower().translate(table)) for word in x.split(" ") if word not in stop]))
 
@@ -388,5 +389,5 @@ def pickle_NostopwrdData():
     with open('./data/paraE_Nostopwrd.pickle', 'wb') as handle:
         pickle.dump(paraE_mapping, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-divideFile()
-pickleData()
+#divideFile()
+pickle_StemedData()

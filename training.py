@@ -13,38 +13,40 @@ from keras.callbacks import ModelCheckpoint,EarlyStopping
 from pickle import load, dump
 import os.path, pickle
 
-queryTrain, queryV, paraTrain, paraV, labelTrain, labelV = util.loadData_new()
+queryTrain, queryV, paraTrain, paraV, labelTrain, labelV = util.loadStemedTrainDataFromPickle()
 print(len(queryTrain),len(paraTrain),len(labelTrain))
 print(len(queryV),len(paraV),len(labelV))
 
+
 #logic for reducing training samples and evaluation samples
 
-queryTrain = {key:queryTrain[key] for i, key in enumerate(queryTrain) if (i>0 and i<100000)}
+queryTrain = {key:queryTrain[key] for i, key in enumerate(queryTrain) if (i>0 and i<250000)}
 paraTrain = {key:paraTrain[key] for i, key in enumerate(queryTrain)}
 
 print(len(queryTrain),len(paraTrain))
-queryV={key:queryV[key] for i, key in enumerate(queryV) if i <10000}
+queryV={key:queryV[key] for i, key in enumerate(queryV) if i <20000}
 paraV={key:paraV[key] for i, key in enumerate(queryV)}
 #----------------------------------------------
-
+filterSample="2L"
 
 print("Tokenizing...")
 
 
-if os.path.isfile("./data/tokenizer-1Lqueries.pickle"):
+if os.path.isfile("./data/tokenizer-"+filterSample+"queries.pickle"):
     #tokenizer = util.create_tokenizer([queryTrain, queryV], [paraTrain, paraV],"1L")
-    with open('./data/tokenizer-1Lqueries.pickle', 'rb') as handle:
+    with open('./data/tokenizer-'+filterSample+'queries.pickle', 'rb') as handle:
         tokenizer=pickle.load(handle)
 else:
-    print("No tokenizer dump exist. create tokenizer file from dividefile.py and restart this program.")
-    exit(0)
-    #tokenizer=util.create_tokenizer([queryTrain,queryV],[paraTrain,paraV])
+    print("No tokenizer dump exist. creating tokenizer file..")# from dividefile.py and restart this program.")
+    #exit(0)
+    tokenizer=util.create_tokenizer([queryTrain,queryV],[paraTrain,paraV],"2L")
 
 vocab_size = len(tokenizer.word_index) + 1
 print('Vocabulary Size: %d' % vocab_size)
 
-embeddings_index =util.load_embedding()
-embedding_matrix=util.create_weight_matrix(vocab_size,tokenizer,embeddings_index)
+emb_dim=200
+embeddings_index =util.load_embedding(emb_dim)
+embedding_matrix=util.create_weight_matrix(vocab_size,tokenizer,embeddings_index,emb_dim)
 
 del embeddings_index #free memory
 # determine the maximum train sequence length from both train and validate data
@@ -78,7 +80,7 @@ print('Maximum query Length: %d' % max_query_length)
 
 # define experiment
 verbose = 1
-n_epochs = 15
+n_epochs = 5
 n_queries_per_update = 10
 n_batches_per_epoch = int(len(queryTrain) / n_queries_per_update)
 n_repeats = 1
@@ -103,7 +105,8 @@ if resume_trng =='yes':
 
 else:
     # define the model
-    model,modelFileName = models.define_model_BILSTM1L(vocab_size, max_query_length, max_para_length,num_classes,embedding_matrix)
+    model,modelFileName = models.define_model_BILSTM1L_withAttentionSVM(vocab_size, max_query_length, max_para_length,num_classes,embedding_matrix,emb_dim)
+    modelFileName = modelFileName + "Vcab_"+str(vocab_size) + "Emb_"+ str(emb_dim)
     for i in range(n_repeats):
         # define checkpoint callback
         filepath = 'trained_model/'+modelFileName+'best.h5'#-ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5'
@@ -121,8 +124,15 @@ else:
             verbose=verbose,
             callbacks=[checkpoint,earlystop])
 
+
         hist = pd.DataFrame(history.history)
         dump(hist, open(modelFileName + '-history.pkl', 'wb'))
+
+        del queryTrain, queryV,paraTrain,paraV
+
+        import testing
+
+        testing.GetPredictionOnEvalSet(modelFileName, tokenizer)
 
         plt.style.use("ggplot")
         fig = plt.figure(figsize=(12, 12))
